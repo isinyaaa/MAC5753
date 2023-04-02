@@ -1,11 +1,15 @@
-#include <string.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #define BUFLEN 1024
 
-void _utoa(int n, char *s)
+/* ideally we'd check for the size of the int, but this is a
+ * simple example, so we'll just assume it fits in our buffer */
+char* _utoa(int n, char *s)
 {
 	int i = 0;
 
@@ -20,6 +24,8 @@ void _utoa(int n, char *s)
 		s[j] = s[i - j - 1];
 		s[i - j - 1] = tmp;
 	}
+
+	return s;
 }
 
 int main(int argc, char *argv[])
@@ -35,26 +41,23 @@ int main(int argc, char *argv[])
 
 	if (fork() != 0) {
 		// parent
-		int ret;
-		char output[BUFLEN + 1] = "=> programa '",
-		     status[4]; /* as statloc uses only half the bits (8) to
+		char status[4]; /* as statloc uses only half the bits (8) to
 				   store retvals, we can get 0-255, which should
 				   take (at most) 4 bytes to represent */
 
-		ret = waitpid(-1, &statloc, 0);
-		if (ret < 0)
-			return ret;
+		if (waitpid(-1, &statloc, 0) < 0)
+			exit(errno);
+
+		if (WIFSIGNALED(statloc))
+			return WTERMSIG(statloc);
 
 		_utoa(WEXITSTATUS(statloc), status);
 
-		strncat(output, args[0], BUFLEN - strlen(output));
-		strncat(output, "' retornou com codigo ", BUFLEN - strlen(output));
-		strncat(output, status, BUFLEN - strlen(output));
-		strncat(output, "\n", BUFLEN - strlen(output));
-
-		ret = write(STDOUT_FILENO, output, strlen(output));
-		if (ret < 0)
-			return ret;
+		write(STDOUT_FILENO, "=> programa '", 13);
+		write(STDOUT_FILENO, args[0], strlen(args[0]));
+		write(STDOUT_FILENO, "' retornou com codigo ", 23);
+		write(STDOUT_FILENO, status, strlen(status));
+		write(STDOUT_FILENO, "\n", 1);
 	} else {
 		// child
 		if (execve(args[0], args, NULL) < 0)

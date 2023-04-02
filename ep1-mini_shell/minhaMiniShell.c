@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,15 +8,15 @@
 
 #define TRUE 1
 #define BUFLEN 1024
+#define MAXARGS 128
 
 void handle_sig(int sig)
 {
-	exit(0);
+	exit(128 + sig);
 }
 
 int main()
 {
-	int ret = 0;
 	char buf[BUFLEN + 1];
 	buf[BUFLEN] = '\0';
 
@@ -24,23 +25,26 @@ int main()
 
 	while (TRUE) {
 		int argc = 0, statloc = 0;
-		char *delim, *last, *args[BUFLEN];
+		char *delim, *last, *args[MAXARGS + 1];
+		ssize_t n;
 
 		/* print prompt */
-		ret = write(STDOUT_FILENO, "> ", 2);
-		if (ret < 0)
-			return ret;
+		write(STDOUT_FILENO, "> ", 2);
 
 		/* read command */
-		ret = read(STDIN_FILENO, buf, BUFLEN - 1);
-		if (ret <= 0)
-			return ret;
+		n = read(STDIN_FILENO, buf, BUFLEN - 1);
+		if (n < 0)
+			exit(errno);
+
+		/* EOF */
+		if (n == 0)
+			exit(0);
 
 		/* remove newline */
-		buf[ret - 1] = '\0';
+		buf[n - 1] = '\0';
 
 		delim = strtok_r(buf, " ", &last);
-		while (delim != NULL) {
+		while (delim != NULL && argc < MAXARGS) {
 			args[argc] = delim;
 			argc++;
 			delim = strtok_r(NULL, " ", &last);
@@ -49,15 +53,14 @@ int main()
 
 		if (fork() != 0) {
 			// parent
-			ret = waitpid(-1, &statloc, 0);
-			if (ret < 0)
-				return ret;
+			if (waitpid(-1, &statloc, 0) < 0)
+				exit(errno);
 		} else {
 			// child
 			if (execvp(args[0], args) < 0)
-				return -1;
+				exit(errno);
 		}
 	}
 
-	return ret;
+	return 0;
 }

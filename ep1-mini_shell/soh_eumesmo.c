@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -14,7 +16,7 @@ int main(int argc, char *argv[])
 	filename = argv[1];
 
 	if (stat(filename, &filestat) == -1)
-		return 1;
+		exit(errno);
 
 	return chmod(filename, ONLYME);
 }

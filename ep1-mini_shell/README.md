@@ -44,6 +44,13 @@ Binaries will be installed to `/usr/local/bin`.
 
 ## Implementation
 
+### Error checking
+
+Error checking is performed with `errno` as needed, using `exit` to terminate
+the process in case of unrecoverable errors or signals -- where due, i.e.
+`rodaeolhe` was specifically asked to return the child's exit status thus it
+does not comply to this.
+
 ### Shell
 
 The `minhaMiniShell` binary acts as a simple parser, with an initialization
@@ -106,8 +113,7 @@ for us, but in order to print the exit message:
 
 we must use the `waitpid` syscall on the parent process in order to wait for
 the children to execute.
-After we wait, we can build the output string using the `string` library's
-`strncat` function.
+After we wait, we can simply `write` the output piece by piece.
 
 Before we can print the child's exit code we must convert it to a string,
 thus we've implemented a simplified `itoa` (which we call `_utoa`) that
